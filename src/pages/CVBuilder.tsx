@@ -69,8 +69,19 @@ export default function CVBuilder() {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        setFormData(parsed.formData || initialFormData);
-        setSettings(parsed.settings || initialSettings);
+        // Deep merge with initialFormData to ensure all fields exist
+        const loadedFormData = parsed.formData || {};
+        setFormData({
+          ...initialFormData,
+          ...loadedFormData,
+          personalData: {
+            ...initialFormData.personalData,
+            ...(loadedFormData.personalData || {}),
+          },
+          experiences: loadedFormData.experiences?.length ? loadedFormData.experiences : initialFormData.experiences,
+          education: loadedFormData.education?.length ? loadedFormData.education : initialFormData.education,
+        });
+        setSettings({ ...initialSettings, ...(parsed.settings || {}) });
         setCurrentStep(parsed.currentStep || 1);
       }
       const historyData = localStorage.getItem(HISTORY_KEY);
@@ -79,6 +90,8 @@ export default function CVBuilder() {
       }
     } catch (e) {
       console.error("Failed to load draft:", e);
+      // Clear corrupted data
+      localStorage.removeItem(STORAGE_KEY);
     }
   }, []);
 
@@ -107,10 +120,10 @@ export default function CVBuilder() {
 
   const canProceed = () => {
     switch (currentStep) {
-      case 1: return formData.personalData.fullName.trim().length > 0;
-      case 2: return formData.targetRole.trim().length > 0;
+      case 1: return (formData.personalData?.fullName?.trim().length ?? 0) > 0;
+      case 2: return (formData.targetRole?.trim().length ?? 0) > 0;
       case 3: return true;
-      case 4: return formData.experiences.some((exp) => exp.company.trim() && exp.role.trim());
+      case 4: return formData.experiences?.some((exp) => exp.company?.trim() && exp.role?.trim()) ?? false;
       default: return true;
     }
   };
@@ -151,28 +164,29 @@ export default function CVBuilder() {
           clearInterval(interval);
           setGenerationStatus("success");
           // Create mock generated CV
+          const pd = formData.personalData;
           setGeneratedCV({
-            headline: formData.personalData.fullName || "Seu Nome",
-            contact: `${formData.personalData.email} • ${formData.personalData.phone} • ${formData.personalData.city}, ${formData.personalData.state}`,
+            headline: pd?.fullName || "Seu Nome",
+            contact: `${pd?.email || ""} • ${pd?.phone || ""} • ${pd?.city || ""}, ${pd?.state || ""}`,
             summary: formData.professionalSummary || "Profissional experiente com sólida formação...",
-            experienceBlocks: formData.experiences.filter(e => e.company).map((exp) => ({
+            experienceBlocks: (formData.experiences || []).filter(e => e.company).map((exp) => ({
               id: exp.id,
               company: exp.company,
               role: exp.role,
               period: `${exp.startDate} - ${exp.isCurrent ? "Atual" : exp.endDate}`,
-              bullets: exp.achievements.split("\n").filter(Boolean),
+              bullets: (exp.achievements || "").split("\n").filter(Boolean),
             })),
-            educationBlocks: formData.education.filter(e => e.institution).map((edu) => ({
+            educationBlocks: (formData.education || []).filter(e => e.institution).map((edu) => ({
               id: edu.id,
               institution: edu.institution,
               degree: edu.degree,
               field: edu.field,
               year: edu.endYear,
             })),
-            skills: [...formData.hardSkills, ...formData.softSkills],
-            languages: formData.languages,
+            skills: [...(formData.hardSkills || []), ...(formData.softSkills || [])],
+            languages: formData.languages || [],
           });
-          setCvName(`${formData.targetRole} — ${formData.jobDescription ? "Personalizado" : "Geral"}`);
+          setCvName(`${formData.targetRole || "CV"} — ${formData.jobDescription ? "Personalizado" : "Geral"}`);
           setTimeout(() => setFlowStep("editor"), 500);
           return prev;
         }
