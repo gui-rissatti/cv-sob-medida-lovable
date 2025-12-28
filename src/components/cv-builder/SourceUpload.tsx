@@ -96,14 +96,6 @@ export function SourceUpload({
 
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          Fonte do CV
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Envie seu CV atual ou forneça a URL do seu LinkedIn.
-        </p>
-      </div>
 
       <Tabs value={sourceType} onValueChange={(v) => onSourceTypeChange(v as SourceType)}>
         <TabsList className="grid w-full grid-cols-2">
