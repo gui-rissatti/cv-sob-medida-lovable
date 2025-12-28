@@ -122,13 +122,7 @@ export function PricingSection() {
                 ))}
               </ul>
 
-              <Button
-                asChild
-                variant={plan.ctaVariant}
-                className="w-full"
-              >
-                <Link to="/app">{plan.cta}</Link>
-              </Button>
+              <Button asChild variant={plan.ctaVariant} className="w-full"><Link to="/app">{plan.cta}</Link></Button>
             </div>
           ))}
         </div>

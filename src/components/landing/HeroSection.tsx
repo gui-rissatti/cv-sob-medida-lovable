@@ -39,9 +39,7 @@ export function HeroSection() {
             </ul>
 
             <div className="flex flex-wrap gap-3 pt-2">
-              <Button asChild size="lg" className="shadow-lg">
-                <Link to="/app">Construir meu CV</Link>
-              </Button>
+              <Button asChild size="lg" className="shadow-lg"><Link to="/app">Construir meu CV</Link></Button>
               <Button variant="outline" size="lg">
                 Criar conta
               </Button>

@@ -47,9 +47,7 @@ export function LandingHeader() {
           <Button variant="outline" size="sm">
             Criar conta
           </Button>
-          <Button asChild size="sm">
-            <Link to="/app">Construir meu CV</Link>
-          </Button>
+          <Button asChild size="sm"><Link to="/app">Construir meu CV</Link></Button>
         </div>
 
         {/* Mobile Menu Button */}
@@ -83,9 +81,7 @@ export function LandingHeader() {
               <Button variant="secondary" size="sm" className="w-full">
                 Criar conta
               </Button>
-              <Button asChild size="sm" className="w-full">
-                <Link to="/app">Construir meu CV</Link>
-              </Button>
+              <Button asChild size="sm" className="w-full"><Link to="/app">Construir meu CV</Link></Button>
             </div>
           </nav>
         </div>
