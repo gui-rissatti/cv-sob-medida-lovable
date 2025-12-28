@@ -13,12 +13,14 @@ export function CTASection() {
           Comece agora mesmo, sem cadastro. Crie sua conta apenas quando quiser gerar.
         </p>
 
-        <Link to="/app">
-          <Button size="lg" variant="secondary" className="gap-2 shadow-lg">
-            Construir meu CV
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </Link>
+        <Button asChild size="lg" variant="secondary" className="gap-2 shadow-lg">
+          <Link to="/app">
+            <span className="inline-flex items-center gap-2">
+              Construir meu CV
+              <ArrowRight className="h-4 w-4" />
+            </span>
+          </Link>
+        </Button>
 
         <p className="text-primary-foreground/60 text-sm mt-4">
           3 gerações grátis • Sem cartão de crédito
