@@ -1,16 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
+import { Clock, Settings2, Menu } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { HistorySidebar } from "@/components/cv-builder/HistorySidebar";
+import { TailoringPanel } from "@/components/cv-builder/TailoringPanel";
+import { CollapsibleSidebar } from "@/components/cv-builder/CollapsibleSidebar";
 import { SinglePageGenerator } from "@/components/cv-builder/SinglePageGenerator";
 import { GenerationProgress } from "@/components/cv-builder/GenerationProgress";
 import { CVEditor } from "@/components/cv-builder/CVEditor";
 import { CVPreview } from "@/components/cv-builder/CVPreview";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { PlansSelection } from "@/components/plans/PlansSelection";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useToast } from "@/hooks/use-toast";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   CVHistoryItem,
   GeneratedCV,
+  GenerationSettings,
+  initialSettings,
 } from "@/types/cv";
 
 const HISTORY_KEY = "cv-sob-medida-history";
@@ -25,6 +33,7 @@ interface DefaultCVData {
 
 export default function CVBuilder() {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [flowStep, setFlowStep] = useState<FlowStep>("generator");
   const [selectedPlan, setSelectedPlan] = useState("free");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -37,6 +46,11 @@ export default function CVBuilder() {
   const [cvName, setCvName] = useState("");
   const [remainingCredits, setRemainingCredits] = useState(3);
   const [defaultCV, setDefaultCV] = useState<DefaultCVData | undefined>();
+  const [settings, setSettings] = useState<GenerationSettings>(initialSettings);
+
+  // Mobile drawer states
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Load history and default CV
   useEffect(() => {
@@ -123,6 +137,7 @@ export default function CVBuilder() {
     setActiveHistoryId(null);
     setGeneratedCV(null);
     setFlowStep("generator");
+    setIsHistoryOpen(false);
   };
 
   const handleSelectHistoryItem = (id: string) => {
@@ -135,6 +150,7 @@ export default function CVBuilder() {
         setFlowStep("editor");
       }
     }
+    setIsHistoryOpen(false);
   };
 
   const handleLoginClick = () => {
@@ -227,19 +243,69 @@ export default function CVBuilder() {
     <div className="h-screen flex flex-col bg-background">
       <Header onLoginClick={handleLoginClick} onRegisterClick={handleRegisterClick} />
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left: History Sidebar */}
-        <div className="w-64 hidden lg:block flex-shrink-0">
-          <HistorySidebar
-            items={history}
-            activeId={activeHistoryId}
-            onSelect={handleSelectHistoryItem}
-            onNew={handleNewCV}
-            onDuplicate={() => {}}
-            onRename={() => {}}
-            onDelete={() => {}}
-          />
+      {/* Mobile: Floating action buttons for drawers */}
+      {isMobile && (
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background">
+          <Sheet open={isHistoryOpen} onOpenChange={setIsHistoryOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Clock className="h-4 w-4" />
+                Histórico
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="w-80 p-0">
+              <HistorySidebar
+                items={history}
+                activeId={activeHistoryId}
+                onSelect={handleSelectHistoryItem}
+                onNew={handleNewCV}
+                onDuplicate={() => {}}
+                onRename={() => {}}
+                onDelete={() => {}}
+              />
+            </SheetContent>
+          </Sheet>
+
+          <Sheet open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Settings2 className="h-4 w-4" />
+                Configurações
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-80 p-0">
+              <TailoringPanel
+                settings={settings}
+                onChange={setSettings}
+                remainingCredits={remainingCredits}
+              />
+            </SheetContent>
+          </Sheet>
         </div>
+      )}
+
+      <div className="flex-1 flex overflow-hidden w-full">
+        {/* Left: History Sidebar (desktop only) */}
+        {!isMobile && (
+          <CollapsibleSidebar
+            side="left"
+            storageKey="cv-history-collapsed"
+            collapsedIcon={<Clock className="h-5 w-5" />}
+            collapsedLabel="Histórico"
+            expandedWidth="w-72"
+            collapsedWidth="w-16"
+          >
+            <HistorySidebar
+              items={history}
+              activeId={activeHistoryId}
+              onSelect={handleSelectHistoryItem}
+              onNew={handleNewCV}
+              onDuplicate={() => {}}
+              onRename={() => {}}
+              onDelete={() => {}}
+            />
+          </CollapsibleSidebar>
+        )}
 
         {/* Center: Single Page Generator */}
         <div className="flex-1 overflow-hidden">
@@ -248,8 +314,28 @@ export default function CVBuilder() {
             isGenerating={false}
             remainingCredits={remainingCredits}
             defaultCV={defaultCV}
+            settings={settings}
+            onSettingsChange={setSettings}
           />
         </div>
+
+        {/* Right: Settings Sidebar (desktop only) */}
+        {!isMobile && (
+          <CollapsibleSidebar
+            side="right"
+            storageKey="cv-settings-collapsed"
+            collapsedIcon={<Settings2 className="h-5 w-5" />}
+            collapsedLabel="Configurações"
+            expandedWidth="w-80"
+            collapsedWidth="w-16"
+          >
+            <TailoringPanel
+              settings={settings}
+              onChange={setSettings}
+              remainingCredits={remainingCredits}
+            />
+          </CollapsibleSidebar>
+        )}
       </div>
 
       {/* Auth Modal */}

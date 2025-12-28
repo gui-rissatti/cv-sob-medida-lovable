@@ -51,7 +51,7 @@ export function HistorySidebar({
   };
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-sidebar">
+    <div className="flex h-full flex-col bg-sidebar">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border p-4">
         <h2 className="font-display text-lg font-semibold text-sidebar-foreground">

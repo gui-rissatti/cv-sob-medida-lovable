@@ -18,7 +18,7 @@ export function TailoringPanel({ settings, onChange, remainingCredits }: Tailori
   };
 
   return (
-    <div className="flex h-full flex-col border-l border-border bg-sidebar">
+    <div className="flex h-full flex-col bg-sidebar">
       {/* Header */}
       <div className="flex items-center gap-2 border-b border-border p-4">
         <Settings2 className="h-5 w-5 text-primary" />

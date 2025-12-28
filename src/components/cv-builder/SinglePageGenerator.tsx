@@ -3,7 +3,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { SourceUpload, SourceType, UploadStatus } from "./SourceUpload";
 import { JobTargetInput } from "./JobTargetInput";
-import { SettingsCompact } from "./SettingsCompact";
 import { UpToDateConfirmation, useUpToDateConfirmation } from "./UpToDateConfirmation";
 import { GenerateSection } from "./GenerateSection";
 import { GenerationSettings, initialSettings } from "@/types/cv";
@@ -24,6 +23,8 @@ interface SinglePageGeneratorProps {
   isGenerating: boolean;
   remainingCredits: number;
   defaultCV?: DefaultCV;
+  settings: GenerationSettings;
+  onSettingsChange: (settings: GenerationSettings) => void;
 }
 
 export function SinglePageGenerator({
@@ -31,6 +32,8 @@ export function SinglePageGenerator({
   isGenerating,
   remainingCredits,
   defaultCV,
+  settings,
+  onSettingsChange,
 }: SinglePageGeneratorProps) {
   // Source state
   const [sourceType, setSourceType] = useState<SourceType>("upload");
@@ -43,9 +46,6 @@ export function SinglePageGenerator({
   const [jobUrl, setJobUrl] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [companyName, setCompanyName] = useState("");
-
-  // Settings state
-  const [settings, setSettings] = useState<GenerationSettings>(initialSettings);
 
   // Confirmation state
   const [confirmations, setConfirmations] = useState({
@@ -97,7 +97,7 @@ export function SinglePageGenerator({
     setJobUrl("");
     setJobDescription("");
     setCompanyName("");
-    setSettings(initialSettings);
+    onSettingsChange(initialSettings);
     setConfirmations({
       experiencesUpdated: false,
       skillsUpdated: false,
@@ -141,7 +141,7 @@ export function SinglePageGenerator({
 
   return (
     <ScrollArea className="h-full">
-      <div className="p-6 space-y-8 max-w-3xl mx-auto">
+      <div className="p-6 space-y-8 max-w-2xl mx-auto">
         {/* Page title */}
         <div className="text-center">
           <h1 className="font-display text-3xl font-bold text-foreground mb-2">
@@ -177,28 +177,24 @@ export function SinglePageGenerator({
           onCompanyNameChange={setCompanyName}
         />
 
-        <Separator />
-
-        {/* Section C: Settings */}
-        <SettingsCompact settings={settings} onChange={setSettings} />
-
-        <Separator />
-
         {/* Section D: Up-to-date Confirmation */}
         {hasSource && (
-          <UpToDateConfirmation
-            hasDefaultCV={!!defaultCV && !uploadedFile}
-            defaultCV={defaultCV}
-            confirmations={confirmations}
-            onConfirmationChange={handleConfirmationChange}
-            saveAsDefault={saveAsDefault}
-            onSaveAsDefaultChange={setSaveAsDefault}
-            onUseDefault={handleUseDefault}
-            onUploadNew={handleUploadNew}
-          />
+          <>
+            <Separator />
+            <UpToDateConfirmation
+              hasDefaultCV={!!defaultCV && !uploadedFile}
+              defaultCV={defaultCV}
+              confirmations={confirmations}
+              onConfirmationChange={handleConfirmationChange}
+              saveAsDefault={saveAsDefault}
+              onSaveAsDefaultChange={setSaveAsDefault}
+              onUseDefault={handleUseDefault}
+              onUploadNew={handleUploadNew}
+            />
+          </>
         )}
 
-        {hasSource && <Separator />}
+        <Separator />
 
         {/* Section E: Generate */}
         <GenerateSection
