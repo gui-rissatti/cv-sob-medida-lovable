@@ -1,55 +1,31 @@
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Sparkles, Menu, X } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { HistorySidebar } from "@/components/cv-builder/HistorySidebar";
-import { TailoringPanel } from "@/components/cv-builder/TailoringPanel";
-import { WizardProgress } from "@/components/cv-builder/WizardProgress";
-import { FormStepPersonalData } from "@/components/cv-builder/FormStepPersonalData";
-import { FormStepObjective } from "@/components/cv-builder/FormStepObjective";
-import { FormStepJobDescription } from "@/components/cv-builder/FormStepJobDescription";
-import { FormStepExperience } from "@/components/cv-builder/FormStepExperience";
-import { FormStepSkills } from "@/components/cv-builder/FormStepSkills";
-import { FormStepSummary } from "@/components/cv-builder/FormStepSummary";
-import { FormStepExtras } from "@/components/cv-builder/FormStepExtras";
-import { AutosaveIndicator } from "@/components/cv-builder/AutosaveIndicator";
+import { SinglePageGenerator } from "@/components/cv-builder/SinglePageGenerator";
 import { GenerationProgress } from "@/components/cv-builder/GenerationProgress";
 import { CVEditor } from "@/components/cv-builder/CVEditor";
 import { CVPreview } from "@/components/cv-builder/CVPreview";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { PlansSelection } from "@/components/plans/PlansSelection";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import {
-  CVFormData,
   CVHistoryItem,
-  GenerationSettings,
   GeneratedCV,
-  initialFormData,
-  initialSettings,
 } from "@/types/cv";
 
-const STORAGE_KEY = "cv-sob-medida-draft";
 const HISTORY_KEY = "cv-sob-medida-history";
+const DEFAULT_CV_KEY = "cv-sob-medida-default";
 
-const WIZARD_STEPS = [
-  { id: 1, title: "Dados", description: "Informações pessoais" },
-  { id: 2, title: "Objetivo", description: "Cargo alvo" },
-  { id: 3, title: "Vaga", description: "Descrição opcional" },
-  { id: 4, title: "Experiência", description: "Histórico profissional" },
-  { id: 5, title: "Formação", description: "Educação e skills" },
-  { id: 6, title: "Resumo", description: "Resumo profissional" },
-  { id: 7, title: "Extras", description: "Projetos e certificações" },
-];
+type FlowStep = "generator" | "auth" | "plans" | "generating" | "editor" | "preview";
 
-type FlowStep = "builder" | "auth" | "plans" | "generating" | "editor" | "preview";
+interface DefaultCVData {
+  fileName: string;
+  updatedAt: string;
+}
 
 export default function CVBuilder() {
   const { toast } = useToast();
-  const [currentStep, setCurrentStep] = useState(1);
-  const [formData, setFormData] = useState<CVFormData>(initialFormData);
-  const [settings, setSettings] = useState<GenerationSettings>(initialSettings);
-  const [autosaveStatus, setAutosaveStatus] = useState<"saving" | "saved" | "error">("saved");
-  const [flowStep, setFlowStep] = useState<FlowStep>("builder");
+  const [flowStep, setFlowStep] = useState<FlowStep>("generator");
   const [selectedPlan, setSelectedPlan] = useState("free");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authModalTab, setAuthModalTab] = useState<"login" | "register">("register");
@@ -60,133 +36,72 @@ export default function CVBuilder() {
   const [generatedCV, setGeneratedCV] = useState<GeneratedCV | null>(null);
   const [cvName, setCvName] = useState("");
   const [remainingCredits, setRemainingCredits] = useState(3);
-  const [showHistorySidebar, setShowHistorySidebar] = useState(true);
-  const [showTailoringPanel, setShowTailoringPanel] = useState(true);
+  const [defaultCV, setDefaultCV] = useState<DefaultCVData | undefined>();
 
-  // Load draft and history from localStorage
+  // Load history and default CV
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        // Deep merge with initialFormData to ensure all fields exist
-        const loadedFormData = parsed.formData || {};
-        setFormData({
-          ...initialFormData,
-          ...loadedFormData,
-          personalData: {
-            ...initialFormData.personalData,
-            ...(loadedFormData.personalData || {}),
-          },
-          experiences: loadedFormData.experiences?.length ? loadedFormData.experiences : initialFormData.experiences,
-          education: loadedFormData.education?.length ? loadedFormData.education : initialFormData.education,
-        });
-        setSettings({ ...initialSettings, ...(parsed.settings || {}) });
-        setCurrentStep(parsed.currentStep || 1);
-      }
       const historyData = localStorage.getItem(HISTORY_KEY);
       if (historyData) {
         setHistory(JSON.parse(historyData));
       }
+      const defaultData = localStorage.getItem(DEFAULT_CV_KEY);
+      if (defaultData) {
+        setDefaultCV(JSON.parse(defaultData));
+      }
     } catch (e) {
-      console.error("Failed to load draft:", e);
-      // Clear corrupted data
-      localStorage.removeItem(STORAGE_KEY);
+      console.error("Failed to load data:", e);
     }
   }, []);
 
-  // Autosave
-  const saveDraft = useCallback(() => {
-    setAutosaveStatus("saving");
-    try {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ formData, settings, currentStep, savedAt: new Date().toISOString() })
-      );
-      setTimeout(() => setAutosaveStatus("saved"), 500);
-    } catch {
-      setAutosaveStatus("error");
-    }
-  }, [formData, settings, currentStep]);
-
-  useEffect(() => {
-    const timeout = setTimeout(saveDraft, 1000);
-    return () => clearTimeout(timeout);
-  }, [formData, saveDraft]);
-
-  const updateFormData = (updates: Partial<CVFormData>) => {
-    setFormData((prev) => ({ ...prev, ...updates }));
-  };
-
-  const canProceed = () => {
-    switch (currentStep) {
-      case 1: return (formData.personalData?.fullName?.trim().length ?? 0) > 0;
-      case 2: return (formData.targetRole?.trim().length ?? 0) > 0;
-      case 3: return true;
-      case 4: return formData.experiences?.some((exp) => exp.company?.trim() && exp.role?.trim()) ?? false;
-      default: return true;
-    }
-  };
-
-  const handleNext = () => {
-    if (currentStep < WIZARD_STEPS.length) {
-      setCurrentStep((prev) => prev + 1);
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStep > 1) setCurrentStep((prev) => prev - 1);
-  };
-
   const handleGenerate = () => {
-    if (!formData.targetRole.trim()) {
-      toast({ title: "Preencha o cargo alvo", variant: "destructive" });
-      setCurrentStep(2);
-      return;
-    }
-    setIsAuthModalOpen(true);
-  };
-
-  const handleAuthSuccess = () => {
-    setIsAuthModalOpen(false);
-    setFlowStep("plans");
-  };
-
-  const handlePlanContinue = () => {
+    // Trigger auth gate (for now, simulate logged in)
     setFlowStep("generating");
     setGenerationStep(1);
     setGenerationStatus("generating");
-    
+
     // Simulate generation
     const interval = setInterval(() => {
       setGenerationStep((prev) => {
         if (prev >= 5) {
           clearInterval(interval);
           setGenerationStatus("success");
+          
           // Create mock generated CV
-          const pd = formData.personalData;
           setGeneratedCV({
-            headline: pd?.fullName || "Seu Nome",
-            contact: `${pd?.email || ""} • ${pd?.phone || ""} • ${pd?.city || ""}, ${pd?.state || ""}`,
-            summary: formData.professionalSummary || "Profissional experiente com sólida formação...",
-            experienceBlocks: (formData.experiences || []).filter(e => e.company).map((exp) => ({
-              id: exp.id,
-              company: exp.company,
-              role: exp.role,
-              period: `${exp.startDate} - ${exp.isCurrent ? "Atual" : exp.endDate}`,
-              bullets: (exp.achievements || "").split("\n").filter(Boolean),
-            })),
-            educationBlocks: (formData.education || []).filter(e => e.institution).map((edu) => ({
-              id: edu.id,
-              institution: edu.institution,
-              degree: edu.degree,
-              field: edu.field,
-              year: edu.endYear,
-            })),
-            skills: [...(formData.hardSkills || []), ...(formData.softSkills || [])],
-            languages: formData.languages || [],
+            headline: "Seu Nome",
+            contact: "email@exemplo.com • (11) 99999-9999 • São Paulo, SP",
+            summary: "Profissional experiente com sólida formação e histórico de resultados. Especializado em entregar valor através de soluções inovadoras e liderança de equipes multidisciplinares.",
+            experienceBlocks: [
+              {
+                id: "1",
+                company: "Empresa Exemplo",
+                role: "Cargo Sênior",
+                period: "Jan 2020 - Atual",
+                bullets: [
+                  "Liderou equipe de 10 pessoas em projeto estratégico",
+                  "Aumentou receita em 35% através de novas iniciativas",
+                  "Implementou processos que reduziram custos em 20%",
+                ],
+              },
+            ],
+            educationBlocks: [
+              {
+                id: "1",
+                institution: "Universidade Exemplo",
+                degree: "Graduação",
+                field: "Administração de Empresas",
+                year: "2018",
+              },
+            ],
+            skills: ["Liderança", "Gestão de Projetos", "Análise de Dados", "Excel Avançado"],
+            languages: [
+              { name: "Português", level: "Nativo" },
+              { name: "Inglês", level: "Fluente" },
+            ],
           });
-          setCvName(`${formData.targetRole || "CV"} — ${formData.jobDescription ? "Personalizado" : "Geral"}`);
+          
+          setCvName("CV sob medida — " + new Date().toLocaleDateString("pt-BR"));
           setTimeout(() => setFlowStep("editor"), 500);
           return prev;
         }
@@ -195,20 +110,24 @@ export default function CVBuilder() {
     }, 800);
   };
 
+  const handleAuthSuccess = () => {
+    setIsAuthModalOpen(false);
+    setFlowStep("plans");
+  };
+
+  const handlePlanContinue = () => {
+    handleGenerate();
+  };
+
   const handleNewCV = () => {
-    setFormData(initialFormData);
-    setSettings(initialSettings);
-    setCurrentStep(1);
     setActiveHistoryId(null);
     setGeneratedCV(null);
-    setFlowStep("builder");
+    setFlowStep("generator");
   };
 
   const handleSelectHistoryItem = (id: string) => {
     const item = history.find((h) => h.id === id);
     if (item) {
-      setFormData(item.formData);
-      setSettings(item.settings);
       setActiveHistoryId(id);
       if (item.generatedContent) {
         setGeneratedCV(item.generatedContent);
@@ -218,35 +137,55 @@ export default function CVBuilder() {
     }
   };
 
-  // Render based on flow step
+  const handleLoginClick = () => {
+    setAuthModalTab("login");
+    setIsAuthModalOpen(true);
+  };
+
+  const handleRegisterClick = () => {
+    setAuthModalTab("register");
+    setIsAuthModalOpen(true);
+  };
+
+  // Plans view
   if (flowStep === "plans") {
     return (
       <div className="min-h-screen bg-background">
-        <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
+        <Header onLoginClick={handleLoginClick} onRegisterClick={handleRegisterClick} />
         <main className="container py-8">
-          <PlansSelection selectedPlan={selectedPlan} onSelectPlan={setSelectedPlan} onContinue={handlePlanContinue} />
+          <PlansSelection
+            selectedPlan={selectedPlan}
+            onSelectPlan={setSelectedPlan}
+            onContinue={handlePlanContinue}
+          />
         </main>
       </div>
     );
   }
 
+  // Generation loading view
   if (flowStep === "generating") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <GenerationProgress
           status={generationStatus}
           currentStep={generationStep}
-          onRetry={() => { setGenerationStep(1); setGenerationStatus("generating"); }}
-          onCancel={() => setFlowStep("builder")}
+          onRetry={() => {
+            setGenerationStep(1);
+            setGenerationStatus("generating");
+            handleGenerate();
+          }}
+          onCancel={() => setFlowStep("generator")}
         />
       </div>
     );
   }
 
+  // Editor view
   if (flowStep === "editor" && generatedCV) {
     return (
       <div className="h-screen flex flex-col bg-background">
-        <Header onLoginClick={() => {}} onRegisterClick={() => {}} />
+        <Header onLoginClick={handleLoginClick} onRegisterClick={handleRegisterClick} />
         <div className="flex-1 flex overflow-hidden">
           <CVEditor
             generatedCV={generatedCV}
@@ -256,8 +195,12 @@ export default function CVBuilder() {
             onPreview={() => setFlowStep("preview")}
             onExport={() => toast({ title: "PDF exportado com sucesso!" })}
             onSaveVersion={() => toast({ title: "Versão salva!" })}
-            onRegenerate={() => { setFlowStep("generating"); setGenerationStep(1); }}
-            onBack={() => setFlowStep("builder")}
+            onRegenerate={() => {
+              setFlowStep("generating");
+              setGenerationStep(1);
+              handleGenerate();
+            }}
+            onBack={() => setFlowStep("generator")}
             isSaving={false}
           />
         </div>
@@ -265,6 +208,7 @@ export default function CVBuilder() {
     );
   }
 
+  // Preview view
   if (flowStep === "preview" && generatedCV) {
     return (
       <div className="h-screen flex flex-col bg-background">
@@ -278,78 +222,43 @@ export default function CVBuilder() {
     );
   }
 
-  // Main builder layout
+  // Main generator layout (3 columns)
   return (
     <div className="h-screen flex flex-col bg-background">
-      <Header onLoginClick={() => setIsAuthModalOpen(true)} onRegisterClick={() => setIsAuthModalOpen(true)} />
+      <Header onLoginClick={handleLoginClick} onRegisterClick={handleRegisterClick} />
 
       <div className="flex-1 flex overflow-hidden">
-        {/* History Sidebar */}
-        {showHistorySidebar && (
-          <div className="w-64 hidden lg:block">
-            <HistorySidebar
-              items={history}
-              activeId={activeHistoryId}
-              onSelect={handleSelectHistoryItem}
-              onNew={handleNewCV}
-              onDuplicate={() => {}}
-              onRename={() => {}}
-              onDelete={() => {}}
-            />
-          </div>
-        )}
-
-        {/* Center: Builder Form */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-auto p-6">
-            <div className="max-w-3xl mx-auto">
-              <div className="text-center mb-8">
-                <h1 className="font-display text-3xl font-bold text-foreground mb-2">
-                  Crie um CV sob medida para a vaga
-                </h1>
-                <p className="text-muted-foreground">Preencha seus dados e gere uma versão otimizada.</p>
-              </div>
-
-              <WizardProgress steps={WIZARD_STEPS} currentStep={currentStep} onStepClick={setCurrentStep} />
-              <AutosaveIndicator status={autosaveStatus} />
-
-              <div className="bg-card rounded-xl border border-border p-6 shadow-card mt-6">
-                {currentStep === 1 && <FormStepPersonalData data={formData.personalData} onChange={(d) => updateFormData({ personalData: { ...formData.personalData, ...d } })} />}
-                {currentStep === 2 && <FormStepObjective data={{ targetRole: formData.targetRole, seniority: formData.seniority, location: formData.location }} onChange={updateFormData} />}
-                {currentStep === 3 && <FormStepJobDescription data={{ jobDescription: formData.jobDescription }} onChange={updateFormData} />}
-                {currentStep === 4 && <FormStepExperience data={{ experiences: formData.experiences }} onChange={updateFormData} />}
-                {currentStep === 5 && <FormStepSkills data={{ education: formData.education, skills: formData.hardSkills, languages: formData.languages }} onChange={(d) => updateFormData({ ...d, hardSkills: d.skills || formData.hardSkills })} />}
-                {currentStep === 6 && <FormStepSummary data={{ professionalSummary: formData.professionalSummary }} onChange={updateFormData} />}
-                {currentStep === 7 && <FormStepExtras data={{ projects: formData.projects, certifications: formData.certifications }} onChange={updateFormData} />}
-              </div>
-
-              <div className="flex items-center justify-between gap-4 mt-6">
-                <Button variant="outline" onClick={handleBack} disabled={currentStep === 1}>
-                  <ChevronLeft className="h-4 w-4 mr-1" /> Voltar
-                </Button>
-                {currentStep < WIZARD_STEPS.length ? (
-                  <Button onClick={handleNext} disabled={!canProceed()}>
-                    Continuar <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                ) : (
-                  <Button variant="hero" size="lg" onClick={handleGenerate}>
-                    <Sparkles className="h-5 w-5 mr-2" /> Gerar CV
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
+        {/* Left: History Sidebar */}
+        <div className="w-64 hidden lg:block flex-shrink-0">
+          <HistorySidebar
+            items={history}
+            activeId={activeHistoryId}
+            onSelect={handleSelectHistoryItem}
+            onNew={handleNewCV}
+            onDuplicate={() => {}}
+            onRename={() => {}}
+            onDelete={() => {}}
+          />
         </div>
 
-        {/* Tailoring Panel */}
-        {showTailoringPanel && (
-          <div className="w-72 hidden xl:block">
-            <TailoringPanel settings={settings} onChange={setSettings} remainingCredits={remainingCredits} />
-          </div>
-        )}
+        {/* Center: Single Page Generator */}
+        <div className="flex-1 overflow-hidden">
+          <SinglePageGenerator
+            onGenerate={handleGenerate}
+            isGenerating={false}
+            remainingCredits={remainingCredits}
+            defaultCV={defaultCV}
+          />
+        </div>
       </div>
 
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} onSuccess={handleAuthSuccess} defaultTab={authModalTab} />
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={handleAuthSuccess}
+        defaultTab={authModalTab}
+      />
     </div>
   );
 }
