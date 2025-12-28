@@ -22,16 +22,6 @@ export function JobTargetInput({
 }: JobTargetInputProps) {
   return (
     <div className="space-y-4">
-      <div className="space-y-2">
-        <h3 className="font-display text-lg font-semibold text-foreground">
-          Vaga alvo
-          <span className="ml-2 text-sm font-normal text-muted-foreground">(recomendado)</span>
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          Quanto mais completa a descrição da vaga, melhor o ajuste do CV.
-        </p>
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Job URL */}
         <div className="space-y-2">
